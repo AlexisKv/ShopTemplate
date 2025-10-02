@@ -1,8 +1,9 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 
-namespace ShopTemplate.DTO;
+namespace ShopTemplate.Dto.Requests;
 
-public class NewProductDto
+public class NewProductRequest
 {
     [Required]
     public string Name { get; set; }
@@ -14,4 +15,5 @@ public class NewProductDto
     public double Price { get; set; }
     
     public IFormFile? ImageData { get; set; }
+    
 }

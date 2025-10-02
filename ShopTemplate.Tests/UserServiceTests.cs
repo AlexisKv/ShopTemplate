@@ -4,6 +4,7 @@ using Moq;
 using ShopTemplate.DB;
 using ShopTemplate.DB.Models;
 using ShopTemplate.DTO;
+using ShopTemplate.Dto.Requests;
 using ShopTemplate.Services;
 
 namespace ShopTemplate.Tests;
@@ -14,7 +15,7 @@ public class UserServiceTests
     [Fact]
     public async Task CreateUserAsync_ShouldReturnError_WhenUserExists()
     {
-        var userDto = new BasicUserAuthDto { Username = "existing", Password = "password123" };
+        var userDto = new UserRequest { Username = "existing", Password = "password123" };
         var users = new List<User> { new User { Username = "existing" } }.AsQueryable();
 
         var dbSetMock = new Mock<DbSet<User>>();
@@ -39,7 +40,7 @@ public class UserServiceTests
     [Fact]
     public async Task CreateUserAsync_ShouldCreateUser_WhenUserDoesNotExist()
     {
-        var userDto = new BasicUserAuthDto { Username = "newuser", Password = "password123" };
+        var userDto = new UserRequest { Username = "newuser", Password = "password123" };
         var users = new List<User>().AsQueryable();
 
         var dbSetMock = new Mock<DbSet<User>>();

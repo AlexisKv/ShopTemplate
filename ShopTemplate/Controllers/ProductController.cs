@@ -1,6 +1,9 @@
 ﻿using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using ShopTemplate.Dto;
 using ShopTemplate.DTO;
+using ShopTemplate.Dto.Dto;
+using ShopTemplate.Dto.Requests;
 using ShopTemplate.Helpers;
 using ShopTemplate.Services;
 
@@ -16,26 +19,23 @@ public class ProductController  : BaseApiController
     }
 
     [HttpPost("add-product")]
-    public async Task<ActionResult<ApiResponse<ProductDto>>> AddProduct([FromForm] NewProductDto productDto)
+    public async Task<ActionResult<ProductDto>> AddProduct([FromForm] NewProductRequest newProductRequest)
     {
-        if (!ModelState.IsValid)
-            return ValidationErrorResponse<ProductDto>();
+        var result = await _productService.AddProduct(newProductRequest);
         
-        var result = await _productService.AddProduct(productDto);
-        
-        if (!result.Success)
-        {
-            return BadRequest(result);
-        }
-        
-        return Ok(result);
+        return result.IsFailed ? result.ToActionResult() : Ok(result.Value);
     }
     
     [HttpGet("get-all-products")]
-    public async Task<ActionResult<PagedResult<List<ProductDto>>>> GetAllProducts([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+    public async Task<ActionResult<PagedResult<ProductDto>>> GetAllProducts([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
     {
-        var response = await _productService.GetAllProducts(pageNumber, pageSize);
-        return Ok(response);
+        var result = await _productService.GetAllProducts(pageNumber, pageSize);
+        
+        if (result.IsFailed)
+        {
+            return result.ToActionResult();
+        }
+        
+        return Ok(result.Value);
     }
-
 }

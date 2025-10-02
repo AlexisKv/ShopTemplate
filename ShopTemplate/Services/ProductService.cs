@@ -1,38 +1,36 @@
-﻿using AutoMapper;
+﻿using FluentResults;
 using Microsoft.EntityFrameworkCore;
 using ShopTemplate.DB;
-using ShopTemplate.DB.Models;
+using ShopTemplate.DB.Repository.Interfaces;
 using ShopTemplate.DTO;
+using ShopTemplate.Dto.Dto;
+using ShopTemplate.Dto.Requests;
 using ShopTemplate.Helpers;
+using ShopTemplate.Mapping;
+using ShopTemplate.ResponseTypes;
 
 namespace ShopTemplate.Services;
 
 public class ProductService
 {
-    private readonly ShopContext _context;
-    private readonly IMapper _mapper;
+    private readonly IProductRepository _productRepository;
 
-    public ProductService(ShopContext context, IMapper mapper)
+    public ProductService(IProductRepository productRepository)
     {
-        _context = context;
-        _mapper = mapper;
+        _productRepository = productRepository;
     }
 
-    public async Task<ApiResponse<ProductDto>> AddProduct(NewProductDto productDto)
+    public async Task<Result<ProductDto>> AddProduct(NewProductRequest productDto)
     {
-        var alreadyExists = _context.Products
-            .Any(x => x.Name.ToLower() == productDto.Name.ToLower());
+        var alreadyExists = await _productRepository.GetByName(productDto.Name) != null;
 
         if (alreadyExists)
         {
-            return new ApiResponse<ProductDto>
-            {
-                Success = false,
-                ErrorMessage = ["Product with this name already exists"],
-            };
+            return Result.Fail<ProductDto>(new Error("Product with this name already exists")
+                .WithMetadata("Type", FailureTypes.AlreadyExists));
         }
         
-        var newProduct = _mapper.Map<Product>(productDto);
+        string productImageLink;
         
         if (productDto.ImageData != null && productDto.ImageData.Length > 0)
         {
@@ -44,45 +42,39 @@ public class ProductService
                 await productDto.ImageData.CopyToAsync(stream);
             }
             
-            newProduct.ImageLink = $"/Images/Products/{fileName}";
+            productImageLink = $"/Images/Products/{fileName}";
         }
         else
         {
-            newProduct.ImageLink = "/Images/Products/placeholder.png";
+            productImageLink = "/Images/Products/placeholder.png";
         }
 
+        var dbProduct = productDto.ToEntity(productImageLink);
+
+        await _productRepository.Add(dbProduct);
         
-        _context.Products.Add(newProduct);
-        
-        await _context.SaveChangesAsync();
-        
-        return new ApiResponse<ProductDto>
-        {
-            Success = true,
-            Data = _mapper.Map<ProductDto>(newProduct)
-        };
+        return Result.Ok(dbProduct.ToDto());
     }
     
-    public async Task<ApiResponse<PagedResult<ProductDto>>> GetAllProducts(int pageNumber = 1, int pageSize = 10)
+    public async Task<Result<PagedResult<ProductDto>>> GetAllProducts(int pageNumber = 1, int pageSize = 10)
     {
-        var query = _context.Products.AsQueryable();
+        var query = _productRepository.GetAllQueryable();
+
         var totalCount = await query.CountAsync();
         var products = await query
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
 
-        return new ApiResponse<PagedResult<ProductDto>>
+        var productsDtos = products.Select(p => p.ToDto()).ToList();
+        
+        return Result.Ok(new PagedResult<ProductDto>
         {
-            Success = true,
-            Data = new PagedResult<ProductDto>
-            {
-                TotalCount = totalCount,
-                PageSize = pageSize,
-                PageNumber = pageNumber,
-                Items = _mapper.Map<List<ProductDto>>(products),
-            }
-        };
+            TotalCount = totalCount,
+            PageSize = pageSize,
+            PageNumber = pageNumber,
+            Items = productsDtos,
+        });
     }
 
 }

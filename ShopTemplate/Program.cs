@@ -1,6 +1,9 @@
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using ShopTemplate.DB;
-using ShopTemplate.Helpers;
+using ShopTemplate.DB.Repository;
+using ShopTemplate.DB.Repository.Interfaces;
+using ShopTemplate.Middlewares;
 using ShopTemplate.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,15 +20,17 @@ builder.Services.AddDbContext<ShopContext>(options =>
 );
 
 builder.Services.AddControllers()
-    .ConfigureApiBehaviorOptions(options =>
+    .AddJsonOptions(options =>
     {
-        options.SuppressModelStateInvalidFilter = true;
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
-
 
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<ProductService>();
-builder.Services.AddAutoMapper(_ => { }, typeof(MappingProfile));
+builder.Services.AddScoped<IProductRepository ,ProductRepository>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<ICartRepository, CartRepository>();
+
 
 var app = builder.Build();
 
@@ -36,6 +41,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 app.Run();

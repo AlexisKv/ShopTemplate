@@ -12,8 +12,8 @@ public class User
     
     [MaxLength(256)]
     public string PasswordHash { get; set; }
-    
-    public DateTime CreatedAt { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     
     public Role Role { get; set; } = Role.Buyer;
     

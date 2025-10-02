@@ -1,8 +1,10 @@
-﻿namespace ShopTemplate.DTO;
+﻿using ShopTemplate.DB.Models;
+
+namespace ShopTemplate.Dto.Dto;
 
 public class ProductDto
 {
-    public int id { get; set; }
+    public int Id { get; set; }
     
     public string Name { get; set; }
     

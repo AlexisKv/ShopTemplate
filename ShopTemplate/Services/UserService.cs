@@ -1,105 +1,69 @@
 ﻿using System.Security.Cryptography;
-using AutoMapper;
-using Microsoft.EntityFrameworkCore;
-using ShopTemplate.DB;
-using ShopTemplate.DB.Models;
+using FluentResults;
+using ShopTemplate.DB.Repository.Interfaces;
 using ShopTemplate.DTO;
+using ShopTemplate.Dto.Requests;
 using ShopTemplate.Helpers;
+using ShopTemplate.Mapping;
+using ShopTemplate.ResponseTypes;
 
 namespace ShopTemplate.Services;
 
 public class UserService
 {
-    private readonly ShopContext _context;
-    private readonly IMapper _mapper;
+    private readonly IUserRepository _userRepository;
 
-    public UserService(ShopContext context, IMapper mapper)
+    public UserService(IUserRepository userRepository)
     {
-        _context = context;
-        _mapper = mapper;
+        _userRepository = userRepository;
     }
 
-    public async Task<ApiResponse<LoginResponse>> CreateUserAsync(BasicUserAuthDto userDto)
+    public async Task<Result<LoginResponse>> CreateUserAsync(UserRequest userRequest)
     {
-        var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Username == userDto.Username);
-        
+        var existingUser = await _userRepository.GetByUsername(userRequest.Username);
+
+
         if (existingUser != null)
         {
-            return new ApiResponse<LoginResponse>
-            {
-                ErrorMessage = ["User with this username already exists"],
-                Success = false,
-                Data = new LoginResponse()
-            };
+            return Result.Fail<LoginResponse>(new Error("User with this username already exists")
+                .WithMetadata("Type", FailureTypes.AlreadyExists));
         }
-            
-        var userPassword = HashPassword(userDto.Password);
-        
-        var newUser = new User()
-        {
-            CreatedAt = DateTime.UtcNow,
-            Username = userDto.Username,
-            Role = Role.Buyer,
-            PasswordHash = userPassword.PasswordHash,
-            Salt = userPassword.Salt
-        };
-        
-        _context.Users.Add(newUser);
-        await _context.SaveChangesAsync();
 
-        return new ApiResponse<LoginResponse>
+        var userPassword = HashPassword(userRequest.Password);
+
+        var userEntity = userRequest.ToEntity( userPassword.PasswordHash, userPassword.Salt);
+
+        await _userRepository.Add(userEntity);
+
+        return Result.Ok(new LoginResponse
         {
-            Success = true,
-            Data = new LoginResponse()
-            {
-                User = _mapper.Map<UserDto>(newUser),
-                JwtToken = "GeneratedTokenHere" 
-            }
-        };
+            User = userEntity.ToDto(),
+            JwtToken = "GeneratedTokenHere"
+        });
     }
-    
-    public async Task<ApiResponse<LoginResponse>> LoginAsync(BasicUserAuthDto userDto)
+
+    public async Task<Result<LoginResponse>> LoginAsync(UserRequest userDto)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Username ==  userDto.Username);
+        var user = await _userRepository.GetByUsername(userDto.Username);
+
         if (user == null)
-        {
-            return new ApiResponse<LoginResponse>
-            {
-                ErrorMessage = ["User with this username does not exist"],
-                Success = false,
-                Data = new LoginResponse
-                {
-                    User = null,
-                    JwtToken = ""
-                }
-            };
-        }
-        
+            return Result.Fail<LoginResponse>(new Error("User with this username does not exist")
+                .WithMetadata("Type", FailureTypes.NotFound));
+
         var saltBytes = Convert.FromBase64String(user.Salt);
-        
         var hash = ComputePasswordHash(userDto.Password, saltBytes);
 
-        if (hash == user.PasswordHash)
-        {
-            return  new ApiResponse<LoginResponse>
-            {
-                Success = true,
-                Data = new LoginResponse
-                {
-                    User =  _mapper.Map<UserDto>(user),
-                    JwtToken = "GeneratedTokenHere"
-                }
-            };
-        }
+        if (hash != user.PasswordHash)
+            return Result.Fail<LoginResponse>(new Error("Incorrect password")
+                .WithMetadata("Type", FailureTypes.InvalidPassword));
         
-        return  new ApiResponse<LoginResponse>
+        return Result.Ok(new LoginResponse
         {
-            ErrorMessage = ["Incorrect password"],
-            Success = false,
-            Data = new LoginResponse()
-        };
+            User = user.ToDto(),
+            JwtToken = "GeneratedToken"
+        });
     }
-    
+
     private (string PasswordHash, string Salt) HashPassword(string password)
     {
         var saltBytes = new byte[16];
@@ -107,12 +71,13 @@ public class UserService
         {
             rng.GetBytes(saltBytes);
         }
+
         var salt = Convert.ToBase64String(saltBytes);
 
         var hash = ComputePasswordHash(password, saltBytes);
         return (hash, salt);
     }
-    
+
     private string ComputePasswordHash(string password, byte[] saltBytes)
     {
         using (var pbkdf2 = new Rfc2898DeriveBytes(password, saltBytes, 101, HashAlgorithmName.SHA256))

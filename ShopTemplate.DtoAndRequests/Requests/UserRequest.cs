@@ -1,11 +1,12 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace ShopTemplate.DTO;
+namespace ShopTemplate.Dto.Requests;
 
-public class BasicUserAuthDto
+public class UserRequest
 {
     [Required]
     [StringLength(20, MinimumLength = 8)]
+    [RegularExpression(@"^\w+$", ErrorMessage = "Username cannot contain spaces or special characters.")]
     public string Username { get; set; }
     
     [Required]
