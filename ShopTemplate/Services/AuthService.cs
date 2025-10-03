@@ -1,20 +1,23 @@
-﻿using System.Security.Cryptography;
-using FluentResults;
+﻿using FluentResults;
 using ShopTemplate.DB.Repository.Interfaces;
 using ShopTemplate.Dto.Requests;
 using ShopTemplate.Dto.Response;
 using ShopTemplate.Mapping;
 using ShopTemplate.ResponseTypes;
+using ShopTemplate.Services.Interfaces;
+using ShopTemplate.Services.Utils;
 
 namespace ShopTemplate.Services;
 
 public class AuthService
 {
     private readonly IUserRepository _userRepository;
+    private readonly IPasswordHasher _passwordHasher;
 
-    public AuthService(IUserRepository userRepository)
+    public AuthService(IUserRepository userRepository, IPasswordHasher passwordHasher)
     {
         _userRepository = userRepository;
+        _passwordHasher = passwordHasher;
     }
 
     public async Task<Result<LoginResponse>> CreateUserAsync(UserRequest userRequest)
@@ -28,7 +31,7 @@ public class AuthService
                 .WithMetadata("Type", FailureTypes.AlreadyExists));
         }
 
-        var userPassword = HashPassword(userRequest.Password);
+        var userPassword = _passwordHasher.HashPassword(userRequest.Password);
 
         var userEntity = userRequest.ToEntity( userPassword.PasswordHash, userPassword.Salt);
 
@@ -48,11 +51,10 @@ public class AuthService
         if (user == null)
             return Result.Fail<LoginResponse>(new Error("User with this username does not exist")
                 .WithMetadata("Type", FailureTypes.NotFound));
+        
+        var matchedPassword = _passwordHasher.VerifyPassword(userDto.Password, user.Salt, user.PasswordHash);
 
-        var saltBytes = Convert.FromBase64String(user.Salt);
-        var hash = ComputePasswordHash(userDto.Password, saltBytes);
-
-        if (hash != user.PasswordHash)
+        if (!matchedPassword)
             return Result.Fail<LoginResponse>(new Error("Incorrect password")
                 .WithMetadata("Type", FailureTypes.InvalidPassword));
         
@@ -61,28 +63,5 @@ public class AuthService
             User = user.ToDto(),
             JwtToken = "GeneratedToken"
         });
-    }
-
-    private (string PasswordHash, string Salt) HashPassword(string password)
-    {
-        var saltBytes = new byte[16];
-        using (var rng = RandomNumberGenerator.Create())
-        {
-            rng.GetBytes(saltBytes);
-        }
-
-        var salt = Convert.ToBase64String(saltBytes);
-
-        var hash = ComputePasswordHash(password, saltBytes);
-        return (hash, salt);
-    }
-
-    private string ComputePasswordHash(string password, byte[] saltBytes)
-    {
-        using (var pbkdf2 = new Rfc2898DeriveBytes(password, saltBytes, 101, HashAlgorithmName.SHA256))
-        {
-            var hashBytes = pbkdf2.GetBytes(32);
-            return Convert.ToBase64String(hashBytes);
-        }
     }
 }

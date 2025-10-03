@@ -1,6 +1,8 @@
 ﻿using ShopTemplate.DB.Repository;
 using ShopTemplate.DB.Repository.Interfaces;
 using ShopTemplate.Services;
+using ShopTemplate.Services.Interfaces;
+using ShopTemplate.Services.Utils;
 
 namespace ShopTemplate.Extensions;
 
@@ -20,6 +22,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<UserService>();
         services.AddScoped<ProductService>();
         services.AddScoped<CartService>();
+        services.AddScoped<IPasswordHasher, PasswordHasher>();
         return services;
     }
 }

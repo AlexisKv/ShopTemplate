@@ -4,6 +4,7 @@ using ShopTemplate.DB;
 using ShopTemplate.Extensions;
 using ShopTemplate.Hubs;
 using ShopTemplate.Middlewares;
+using ShopTemplate.Services.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,7 +36,10 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+    await SeedingInitializer.SeedAsync(app.Services);
 }
+
+
 
 app.UseHttpsRedirection();
 app.UseMiddleware<ExceptionHandlingMiddleware>();

@@ -1,22 +1,24 @@
-﻿using System.Security.Cryptography;
-using Moq;
+﻿using Moq;
 using ShopTemplate.DB.Models;
 using ShopTemplate.DB.Repository.Interfaces;
 using ShopTemplate.Dto.Requests;
 using ShopTemplate.ResponseTypes;
 using ShopTemplate.Services;
+using ShopTemplate.Services.Interfaces;
 
 namespace ShopTemplate.Tests;
 
 public class AuthServiceTests
 {
-     private readonly Mock<IUserRepository> _userRepoMock;
+    private readonly Mock<IUserRepository> _userRepoMock;
+    private readonly Mock<IPasswordHasher> _passwordHasherMock;
     private readonly AuthService _authService;
 
     public AuthServiceTests()
     {
         _userRepoMock = new Mock<IUserRepository>();
-        _authService = new AuthService(_userRepoMock.Object);
+        _passwordHasherMock = new Mock<IPasswordHasher>();
+        _authService = new AuthService(_userRepoMock.Object, _passwordHasherMock.Object);
     }
 
     [Fact]
@@ -37,11 +39,14 @@ public class AuthServiceTests
     {
         var request = new UserRequest { Username = "newuser", Password = "pass" };
         _userRepoMock.Setup(x => x.GetByUsername(request.Username)).ReturnsAsync((User?)null);
+
+        _passwordHasherMock.Setup(x => x.HashPassword(request.Password))
+            .Returns(("hashedpass", "salt"));
+
         _userRepoMock.Setup(x => x.Add(It.IsAny<User>())).Returns(Task.CompletedTask);
-        
+
         var result = await _authService.CreateUserAsync(request);
 
-        // Assert
         Assert.True(result.IsSuccess);
         Assert.Equal("newuser", result.Value.User.Username);
         Assert.NotNull(result.Value.JwtToken);
@@ -63,13 +68,11 @@ public class AuthServiceTests
     public async Task LoginAsync_ShouldFail_WhenPasswordIncorrect()
     {
         var request = new UserRequest { Username = "user", Password = "wrong" };
-        var user = new User
-        {
-            Username = "user",
-            Salt = Convert.ToBase64String(new byte[16]),
-            PasswordHash = Convert.ToBase64String(new byte[32])
-        };
+        var user = new User { Username = "user", Salt = "salt", PasswordHash = "hash" };
         _userRepoMock.Setup(x => x.GetByUsername(request.Username)).ReturnsAsync(user);
+
+        _passwordHasherMock.Setup(x => x.VerifyPassword(request.Password, user.Salt, user.PasswordHash))
+            .Returns(false);
 
         var result = await _authService.LoginAsync(request);
 
@@ -81,21 +84,16 @@ public class AuthServiceTests
     public async Task LoginAsync_ShouldReturnSuccess_WhenCredentialsCorrect()
     {
         var password = "pass";
-        var saltBytes = new byte[16];
-        using var rng = RandomNumberGenerator.Create();
-        rng.GetBytes(saltBytes);
-        var salt = Convert.ToBase64String(saltBytes);
-
-        using var pbkdf2 = new Rfc2898DeriveBytes(password, saltBytes, 101, HashAlgorithmName.SHA256);
-        var hash = Convert.ToBase64String(pbkdf2.GetBytes(32));
-
-        var user = new User { Username = "user", Salt = salt, PasswordHash = hash };
+        var user = new User { Username = "user", Salt = "salt", PasswordHash = "hashedpass" };
         _userRepoMock.Setup(x => x.GetByUsername("user")).ReturnsAsync(user);
 
+        _passwordHasherMock.Setup(x => x.VerifyPassword(password, user.Salt, user.PasswordHash))
+            .Returns(true);
+
         var request = new UserRequest { Username = "user", Password = password };
-        
+
         var result = await _authService.LoginAsync(request);
-        
+
         Assert.True(result.IsSuccess);
         Assert.Equal("user", result.Value.User.Username);
         Assert.NotNull(result.Value.JwtToken);
