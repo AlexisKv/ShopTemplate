@@ -1,6 +1,6 @@
-﻿namespace ShopTemplate.Helpers;
+﻿namespace ShopTemplate.Dto.Response;
 
-public class PagedResult<T>
+public class PagedResultResponse<T>
 {
     public int TotalCount { get; set; }
     public int PageSize { get; set; }

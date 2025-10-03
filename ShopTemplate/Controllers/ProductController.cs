@@ -1,15 +1,16 @@
-﻿using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using ShopTemplate.Dto;
-using ShopTemplate.DTO;
 using ShopTemplate.Dto.Dto;
 using ShopTemplate.Dto.Requests;
+using ShopTemplate.Dto.Response;
 using ShopTemplate.Helpers;
 using ShopTemplate.Services;
 
 namespace ShopTemplate.Controllers;
 
-public class ProductController  : BaseApiController
+[ApiController]
+[Route("api/[controller]")]
+public class ProductController : ControllerBase
 {
     private readonly ProductService _productService;
 
@@ -27,7 +28,7 @@ public class ProductController  : BaseApiController
     }
     
     [HttpGet("get-all-products")]
-    public async Task<ActionResult<PagedResult<ProductDto>>> GetAllProducts([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+    public async Task<ActionResult<PagedResultResponse<ProductDto>>> GetAllProducts([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
     {
         var result = await _productService.GetAllProducts(pageNumber, pageSize);
         

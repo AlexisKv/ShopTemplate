@@ -1,7 +1,6 @@
-﻿using ShopTemplate.Dto;
-using ShopTemplate.Dto.Dto;
+﻿using ShopTemplate.Dto.Dto;
 
-namespace ShopTemplate.DTO;
+namespace ShopTemplate.Dto.Response;
 
 public class LoginResponse
 {

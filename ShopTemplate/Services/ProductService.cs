@@ -1,11 +1,9 @@
 ﻿using FluentResults;
 using Microsoft.EntityFrameworkCore;
-using ShopTemplate.DB;
 using ShopTemplate.DB.Repository.Interfaces;
-using ShopTemplate.DTO;
 using ShopTemplate.Dto.Dto;
 using ShopTemplate.Dto.Requests;
-using ShopTemplate.Helpers;
+using ShopTemplate.Dto.Response;
 using ShopTemplate.Mapping;
 using ShopTemplate.ResponseTypes;
 
@@ -56,7 +54,7 @@ public class ProductService
         return Result.Ok(dbProduct.ToDto());
     }
     
-    public async Task<Result<PagedResult<ProductDto>>> GetAllProducts(int pageNumber = 1, int pageSize = 10)
+    public async Task<Result<PagedResultResponse<ProductDto>>> GetAllProducts(int pageNumber = 1, int pageSize = 10)
     {
         var query = _productRepository.GetAllQueryable();
 
@@ -68,7 +66,7 @@ public class ProductService
 
         var productsDtos = products.Select(p => p.ToDto()).ToList();
         
-        return Result.Ok(new PagedResult<ProductDto>
+        return Result.Ok(new PagedResultResponse<ProductDto>
         {
             TotalCount = totalCount,
             PageSize = pageSize,

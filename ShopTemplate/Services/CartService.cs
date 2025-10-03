@@ -1,7 +1,9 @@
 ﻿using FluentResults;
+using Microsoft.AspNetCore.SignalR;
 using ShopTemplate.DB.Models;
 using ShopTemplate.DB.Repository.Interfaces;
 using ShopTemplate.Dto.Dto;
+using ShopTemplate.Hubs;
 using ShopTemplate.Mapping;
 using ShopTemplate.ResponseTypes;
 
@@ -11,11 +13,13 @@ public class CartService
 {
     private readonly ICartRepository _cartRepository;
     private readonly IProductRepository _productRepository;
+    private readonly IHubContext<CartHub> _hubContext;
 
-    public CartService(ICartRepository cartRepository, IProductRepository productRepository)
+    public CartService(ICartRepository cartRepository, IProductRepository productRepository, IHubContext<CartHub> hubContext)
     {
         _cartRepository = cartRepository;
         _productRepository = productRepository;
+        _hubContext = hubContext;
     }
 
     public async Task<Result<CartDto>> GetCartByUserId(Guid userId)
@@ -27,10 +31,11 @@ public class CartService
                 .WithMetadata("Type", FailureTypes.NotFound));
         }
 
+        await NotifyCartUpdated(userId, cart.ToDto());
         return Result.Ok(cart.ToDto());
     }
 
-    public async Task<Result<CartDto>> AddItemToCart(Guid userId, int productId, int quantity)
+    public async Task<Result> AddItemToCart(Guid userId, int productId, int quantity)
     {
         var cart = await _cartRepository.GetCartByUserId(userId) ?? new Cart
         {
@@ -48,7 +53,7 @@ public class CartService
         {
             var product = await _productRepository.GetById(productId);
             if (product == null)
-                return Result.Fail<CartDto>(new Error("Product not found")
+                return Result.Fail(new Error("Product not found")
                     .WithMetadata("Type", FailureTypes.NotFound));
 
             cart.Items.Add(new CartItem
@@ -66,10 +71,11 @@ public class CartService
         else
             await _cartRepository.UpdateCart(cart);
 
-        return Result.Ok(cart.ToDto());
+        await NotifyCartUpdated(userId, cart.ToDto());
+        return Result.Ok();
     }
 
-    public async Task<Result<CartDto>> RemoveItemFromCart(Guid userId, int productId)
+    public async Task<Result> RemoveItemFromCart(Guid userId, int productId)
     {
         var cart = await _cartRepository.GetCartByUserId(userId);
         if (cart == null) return null;
@@ -82,14 +88,15 @@ public class CartService
             await _cartRepository.UpdateCart(cart);
         }
 
-        return Result.Ok(cart.ToDto());
+        await NotifyCartUpdated(userId, cart.ToDto());
+        return Result.Ok();
     }
 
-    public async Task<Result<CartDto>> UpdateItemQuantity(Guid userId, int productId, int quantity)
+    public async Task<Result> UpdateItemQuantity(Guid userId, int productId, int quantity)
     {
         var cart = await _cartRepository.GetCartByUserId(userId);
         if (cart == null)
-            return Result.Fail<CartDto>(new Error("Cart not found")
+            return Result.Fail(new Error("Cart not found")
                 .WithMetadata("Type", FailureTypes.NotFound));
 
         var item = cart.Items.FirstOrDefault(i => i.ProductId == productId);
@@ -99,13 +106,19 @@ public class CartService
             UpdateCartTotal(cart);
             await _cartRepository.UpdateCart(cart);
             
-            return Result.Ok(cart.ToDto());
+            await NotifyCartUpdated(userId, cart.ToDto());
+            return Result.Ok();
         }
         
         
-        return Result.Fail<CartDto>(new Error("Product not found in cart")
+        return Result.Fail(new Error("Product not found in cart")
             .WithMetadata("Type", FailureTypes.NotFound));
         
+    }
+    
+    private async Task NotifyCartUpdated(Guid userId, CartDto cartDto)
+    {
+        await _hubContext.Clients.Group(userId.ToString()).SendAsync("CartUpdated", cartDto);
     }
 
     //todo: refactor

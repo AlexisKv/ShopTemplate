@@ -1,6 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-using ShopTemplate.DB.Models;
-using ShopTemplate.Dto;
+﻿using ShopTemplate.DB.Models;
 using ShopTemplate.Dto.Dto;
 using ShopTemplate.Dto.Requests;
 

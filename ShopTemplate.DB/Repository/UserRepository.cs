@@ -13,9 +13,9 @@ public class UserRepository : IUserRepository
         _dbContext = dbContext;
     }
         
-    public Task<User?> GetById(int id)
+    public async Task<User?> GetById(Guid id)
     {
-        throw new NotImplementedException();
+        return await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == id);
     }
 
     public async Task<User?> GetByUsername(string username)

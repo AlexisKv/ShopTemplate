@@ -1,6 +1,4 @@
-﻿using ShopTemplate.DB.Models;
-
-namespace ShopTemplate.Dto.Dto;
+﻿namespace ShopTemplate.Dto.Dto;
 
 public class CartDto
 {

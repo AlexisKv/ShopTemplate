@@ -1,10 +1,9 @@
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using ShopTemplate.DB;
-using ShopTemplate.DB.Repository;
-using ShopTemplate.DB.Repository.Interfaces;
+using ShopTemplate.Extensions;
+using ShopTemplate.Hubs;
 using ShopTemplate.Middlewares;
-using ShopTemplate.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,12 +23,10 @@ builder.Services.AddControllers()
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
+builder.Services.AddSignalR();
 
-builder.Services.AddScoped<UserService>();
-builder.Services.AddScoped<ProductService>();
-builder.Services.AddScoped<IProductRepository ,ProductRepository>();
-builder.Services.AddScoped<IUserRepository, UserRepository>();
-builder.Services.AddScoped<ICartRepository, CartRepository>();
+builder.Services.AddRepositories()
+    .AddApplicationServices();
 
 
 var app = builder.Build();
@@ -44,4 +41,5 @@ app.UseHttpsRedirection();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<CartHub>("/cartHub");
 app.Run();
