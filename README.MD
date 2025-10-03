@@ -65,6 +65,11 @@ All unhandled exceptions are caught by `ExceptionHandlingMiddleware`:
   **Password:** `TestPassword`
 - Sample products and an initial empty cart for the test user are also seeded.
 
+## API Example
+
+Here is a preview of requests in Postman:
+
+![Postman Preview](./Preview.JPG)
 ## Setup Database
 
 1. Install MySQL (if not installed) and start the service.
@@ -75,11 +80,6 @@ All unhandled exceptions are caught by `ExceptionHandlingMiddleware`:
 "DefaultConnection": "Server=localhost;Database=ShopTemplateDB;User Id=sa;Password=gg232412abb22#306!843;"
 }
 ```
-## API Example
-
-Here is a preview of requests in Postman:
-
-![Postman Preview](./Preview.JPG)
 
 ## Running project with migrations
 For migrations, you should open a terminal in the project folder and run:
